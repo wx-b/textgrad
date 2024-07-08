@@ -406,7 +406,28 @@ def longest_increasing_subsequence(nums):
     5. After running optimizations, select which outputs you want to download using the checkboxes.
     6. Click the "Show Selected" button to display the selected outputs.
     
-    ... (keep the rest of the instructions)
+    ### Multimodal Optimization Tab:
+    1. Upload an image you want to ask a question about.
+    2. Enter your question in the text box.
+    3. Modify the evaluation instruction if needed.
+    4. Click the "Run Optimization" button to see the results.
+
+    ### Solution Optimization Tab:
+    1. Enter the initial input (e.g., a punchline or text to optimize).
+    2. Specify the role description for the variable.
+    3. Enter the loss function prompt.
+    4. Click the "Run Solution Optimization" button to see the results.
+
+    ### Prompt Optimization Tab:
+    1. Enter the system prompt and input prompt you want to optimize.
+    2. Provide a sample question and answer for evaluation.
+    3. Click the "Run Prompt Optimization" button to see the results.
+
+    ### Code Optimization Tab:
+    1. Enter the problem description in the text box.
+    2. Provide the initial code solution in the code editor.
+    3. Click the "Run Code Optimization" button to see the results.
+
     """)
 
     for run_button in [run_button, run_button_sol, run_button_prompt, run_button_code]:
