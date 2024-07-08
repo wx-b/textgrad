@@ -153,6 +153,25 @@ def run_code_optimization(problem_text, initial_solution, engine, api_key, itera
     initial, loss, optimized = process_code_optimization(problem_text, initial_solution, engine, api_key, iterations)
     return initial, loss, optimized
 
+def check_api_key(api_key):
+    if not api_key:
+        return gr.Warning("Please enter your API key before running optimizations.")
+
+def update_selected_outputs(*args):
+    checkboxes = args[:len(args)//2]
+    outputs = args[len(args)//2:]
+    selected = ""
+    labels = ["Uploaded Image", "Question", "Evaluation Instruction", "Initial Response", "Loss", "Optimized Response", 
+              "Initial Input", "Role Description", "Loss Prompt", "Optimized Solution", 
+              "System Prompt", "Input Prompt", "Question", "Answer", "Optimized System Prompt", "Optimized Input Prompt", "Prediction",
+              "Problem Description", "Initial Code", "Optimized Code"]
+
+    for checkbox, output, label in zip(checkboxes, outputs, labels):
+        if checkbox and output:
+            selected += f"{label}:\n{output}\n\n"
+    return selected
+
+
 with gr.Blocks() as demo:
     gr.Markdown("# TextGrad Optimization Demo")
     
@@ -191,6 +210,9 @@ with gr.Blocks() as demo:
 
             gr.Markdown("## Select outputs to download:")
             with gr.Row():
+                multimodal_image_checkbox = gr.Checkbox(label="Uploaded Image", value=False)
+                multimodal_question_checkbox = gr.Checkbox(label="Question", value=False)
+                multimodal_evaluation_checkbox = gr.Checkbox(label="Evaluation Instruction", value=False)
                 multimodal_initial_checkbox = gr.Checkbox(label="Initial Response", value=False)
                 multimodal_loss_checkbox = gr.Checkbox(label="Loss", value=False)
                 multimodal_optimized_checkbox = gr.Checkbox(label="Optimized Response", value=True)
@@ -202,6 +224,14 @@ with gr.Blocks() as demo:
                     gr.Markdown(" ")
                 with gr.Column(scale=1):
                     multimodal_show_button = gr.Button("Show Selected")
+
+            multimodal_show_button.click(
+                update_selected_outputs,
+                inputs=[multimodal_image_checkbox, multimodal_question_checkbox, multimodal_evaluation_checkbox, multimodal_initial_checkbox, multimodal_loss_checkbox, multimodal_optimized_checkbox,
+                        image_input, question_input, evaluation_instruction, initial_response, loss_output, optimized_response],
+                outputs=[multimodal_selected_outputs]
+            )
+
 
         with gr.TabItem("Solution Optimization"):
             with gr.Row():
@@ -224,6 +254,9 @@ with gr.Blocks() as demo:
 
             gr.Markdown("## Select outputs to download:")
             with gr.Row():
+                solution_initial_input_checkbox = gr.Checkbox(label="Initial Input", value=False)
+                solution_role_description_checkbox = gr.Checkbox(label="Role Description", value=False)
+                solution_loss_prompt_checkbox = gr.Checkbox(label="Loss Prompt", value=False)
                 solution_initial_checkbox = gr.Checkbox(label="Initial Input", value=False)
                 solution_loss_checkbox = gr.Checkbox(label="Loss", value=False)
                 solution_optimized_checkbox = gr.Checkbox(label="Optimized Solution", value=True)
@@ -235,6 +268,15 @@ with gr.Blocks() as demo:
                     gr.Markdown(" ")
                 with gr.Column(scale=1):
                     solution_show_button = gr.Button("Show Selected")
+
+
+            solution_show_button.click(
+                update_selected_outputs,
+                inputs=[solution_initial_input_checkbox, solution_role_description_checkbox, solution_loss_prompt_checkbox, solution_initial_checkbox, solution_loss_checkbox, solution_optimized_checkbox,
+                        initial_input, role_description, loss_prompt, initial_solution_output, loss_output_sol, optimized_solution],
+                outputs=[solution_selected_outputs]
+            )
+
 
         with gr.TabItem("Prompt Optimization"):
             with gr.Row():
@@ -259,6 +301,10 @@ with gr.Blocks() as demo:
 
             gr.Markdown("## Select outputs to download:")
             with gr.Row():
+                prompt_system_prompt_checkbox = gr.Checkbox(label="System Prompt", value=True)
+                prompt_input_prompt_checkbox = gr.Checkbox(label="Input Prompt", value=True)
+                prompt_question_checkbox = gr.Checkbox(label="Question", value=False)
+                prompt_answer_checkbox = gr.Checkbox(label="Answer", value=False)
                 prompt_system_checkbox = gr.Checkbox(label="Optimized System Prompt", value=True)
                 prompt_input_checkbox = gr.Checkbox(label="Optimized Input Prompt", value=True)
                 prompt_prediction_checkbox = gr.Checkbox(label="Prediction", value=False)
@@ -271,6 +317,15 @@ with gr.Blocks() as demo:
                     gr.Markdown(" ")
                 with gr.Column(scale=1):
                     prompt_show_button = gr.Button("Show Selected")
+
+
+            prompt_show_button.click(
+                update_selected_outputs,
+                inputs=[prompt_system_prompt_checkbox, prompt_input_prompt_checkbox, prompt_question_checkbox, prompt_answer_checkbox, prompt_system_checkbox, prompt_input_checkbox, prompt_prediction_checkbox, prompt_loss_checkbox,
+                        system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt],
+                outputs=[prompt_selected_outputs]
+            )
+
 
         with gr.TabItem("Code Optimization"):
             with gr.Row():
@@ -320,7 +375,8 @@ def longest_increasing_subsequence(nums):
 
             gr.Markdown("## Select outputs to download:")
             with gr.Row():
-                code_initial_checkbox = gr.Checkbox(label="Initial Code", value=False)
+                code_problem_text_checkbox = gr.Checkbox(label="Problem Description", value=False)
+                code_initial_solution_checkbox = gr.Checkbox(label="Initial Code", value=False)
                 code_loss_checkbox = gr.Checkbox(label="Loss", value=False)
                 code_optimized_checkbox = gr.Checkbox(label="Optimized Code", value=True)
 
@@ -331,6 +387,15 @@ def longest_increasing_subsequence(nums):
                     gr.Markdown(" ")
                 with gr.Column(scale=1):
                     code_show_button = gr.Button("Show Selected")
+
+
+            code_show_button.click(
+                update_selected_outputs,
+                inputs=[code_problem_text_checkbox, code_initial_solution_checkbox, code_loss_checkbox, code_optimized_checkbox,
+                        problem_text_input, initial_code_input, loss_output_code, optimized_code_output],
+                outputs=[code_selected_outputs]
+            )
+
 
     gr.Markdown("""
     ## How to use this demo:
@@ -343,48 +408,6 @@ def longest_increasing_subsequence(nums):
     
     ... (keep the rest of the instructions)
     """)
-
-    def update_selected_outputs(*args):
-        checkboxes = args[:len(args)//2]
-        outputs = args[len(args)//2:]
-        selected = ""
-        labels = ["Initial Response", "Loss", "Optimized Response", "Initial Input", "Optimized Solution", "Prediction", "Optimized System Prompt", "Optimized Input Prompt", "Initial Code", "Optimized Code"]
-        for checkbox, output, label in zip(checkboxes, outputs, labels):
-            if checkbox and output:
-                selected += f"{label}:\n{output}\n\n"
-        return selected
-
-    multimodal_show_button.click(
-        update_selected_outputs,
-        inputs=[multimodal_initial_checkbox, multimodal_loss_checkbox, multimodal_optimized_checkbox,
-                initial_response, loss_output, optimized_response],
-        outputs=[multimodal_selected_outputs]
-    )
-
-    solution_show_button.click(
-        update_selected_outputs,
-        inputs=[solution_initial_checkbox, solution_loss_checkbox, solution_optimized_checkbox,
-                initial_solution_output, loss_output_sol, optimized_solution],
-        outputs=[solution_selected_outputs]
-    )
-
-    prompt_show_button.click(
-        update_selected_outputs,
-        inputs=[prompt_system_checkbox, prompt_input_checkbox, prompt_prediction_checkbox, prompt_loss_checkbox,
-                optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt],
-        outputs=[prompt_selected_outputs]
-    )
-
-    code_show_button.click(
-        update_selected_outputs,
-        inputs=[code_initial_checkbox, code_loss_checkbox, code_optimized_checkbox,
-                initial_code_output, loss_output_code, optimized_code_output],
-        outputs=[code_selected_outputs]
-    )
-
-    def check_api_key(api_key):
-        if not api_key:
-            return gr.Warning("Please enter your API key before running optimizations.")
 
     for run_button in [run_button, run_button_sol, run_button_prompt, run_button_code]:
         run_button.click(check_api_key, inputs=[api_key_input])
