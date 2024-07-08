@@ -20,20 +20,25 @@ def process_image_and_question(image, question, engine, api_key, evaluation_inst
     image_variable = tg.Variable(img_byte_arr, role_description="image to answer a question about", requires_grad=False)
     question_variable = tg.Variable(question, role_description="question", requires_grad=False)
 
-    response = MultimodalLLMCall(engine)([image_variable, question_variable])
+    # Initial response
+    initial_response = MultimodalLLMCall(engine)([image_variable, question_variable])
+
+    # Create a variable for the response that we can optimize
+    response = tg.Variable(initial_response.value, role_description="response to the question", requires_grad=True)
 
     loss_fn = ImageQALoss(
         evaluation_instruction=evaluation_instruction,
         engine=engine
     )
 
-    loss = loss_fn(question=question_variable, image=image_variable, response=response)
+    # Optimization loop
+    for _ in range(3):  # You can adjust the number of optimization steps
+        loss = loss_fn(question=question_variable, image=image_variable, response=response)
+        optimizer = tg.TGD(parameters=[response])
+        loss.backward()
+        optimizer.step()
 
-    optimizer = tg.TGD(parameters=[response])
-    loss.backward()
-    optimizer.step()
-
-    return response.value, str(loss.value), response.value
+    return initial_response.value, str(loss.value), response.value
 
 def run_textgrad_multimodal(image, question, engine, api_key, evaluation_instruction):
     initial_response, loss, optimized_response = process_image_and_question(image, question, engine, api_key, evaluation_instruction)
