@@ -156,9 +156,14 @@ def run_code_optimization(problem_text, initial_solution, engine, api_key, itera
 with gr.Blocks() as demo:
     gr.Markdown("# TextGrad Optimization Demo")
     
-    api_key_input = gr.Textbox(label="Enter your API Key", type="password")
-    engine_dropdown = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
-    iterations = gr.Slider(minimum=1, maximum=10, step=1, value=3, label="Number of Optimization Iterations")
+    with gr.Row():
+        with gr.Column(scale=1):
+            engine_dropdown = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
+            iterations = gr.Slider(minimum=1, maximum=10, step=1, value=3, label="Number of Optimization Iterations")
+        with gr.Column(scale=1):
+            api_key_input = gr.Textbox(label="Enter your API Key", type="password")
+
+    gr.Markdown("---")
 
     with gr.Tabs():
         with gr.TabItem("Multimodal Optimization"):
@@ -177,13 +182,26 @@ with gr.Blocks() as demo:
                     initial_response = gr.Textbox(label="Initial Response", lines=5)
                     loss_output = gr.Textbox(label="Loss", lines=2)
                     optimized_response = gr.Textbox(label="Optimized Response", lines=5)
-                    copy_button = gr.Button("Copy Results")
 
             run_button.click(
                 run_textgrad_multimodal,
                 inputs=[image_input, question_input, engine_dropdown, api_key_input, evaluation_instruction, iterations],
                 outputs=[initial_response, loss_output, optimized_response]
             )
+
+            gr.Markdown("## Select outputs to download:")
+            with gr.Row():
+                multimodal_initial_checkbox = gr.Checkbox(label="Initial Response", value=False)
+                multimodal_loss_checkbox = gr.Checkbox(label="Loss", value=False)
+                multimodal_optimized_checkbox = gr.Checkbox(label="Optimized Response", value=True)
+
+            multimodal_selected_outputs = gr.Code(label="Selected Outputs", language="markdown", lines=10)
+
+            with gr.Row():
+                with gr.Column(scale=3):
+                    gr.Markdown(" ")
+                with gr.Column(scale=1):
+                    multimodal_show_button = gr.Button("Show Selected")
 
         with gr.TabItem("Solution Optimization"):
             with gr.Row():
@@ -197,13 +215,26 @@ with gr.Blocks() as demo:
                     initial_solution_output = gr.Textbox(label="Initial Input", lines=3)
                     loss_output_sol = gr.Textbox(label="Loss", lines=2)
                     optimized_solution = gr.Textbox(label="Optimized Solution", lines=3)
-                    copy_button_sol = gr.Button("Copy Results")
 
             run_button_sol.click(
                 run_solution_optimization,
                 inputs=[initial_input, role_description, loss_prompt, engine_dropdown, api_key_input, iterations],
                 outputs=[initial_solution_output, loss_output_sol, optimized_solution]
             )
+
+            gr.Markdown("## Select outputs to download:")
+            with gr.Row():
+                solution_initial_checkbox = gr.Checkbox(label="Initial Input", value=False)
+                solution_loss_checkbox = gr.Checkbox(label="Loss", value=False)
+                solution_optimized_checkbox = gr.Checkbox(label="Optimized Solution", value=True)
+
+            solution_selected_outputs = gr.Code(label="Selected Outputs", language="markdown", lines=10)
+
+            with gr.Row():
+                with gr.Column(scale=3):
+                    gr.Markdown(" ")
+                with gr.Column(scale=1):
+                    solution_show_button = gr.Button("Show Selected")
 
         with gr.TabItem("Prompt Optimization"):
             with gr.Row():
@@ -219,13 +250,27 @@ with gr.Blocks() as demo:
                     optimized_input_prompt_output = gr.Textbox(label="Optimized Input Prompt", lines=3)
                     prediction_output = gr.Textbox(label="Prediction", lines=3)
                     loss_output_prompt = gr.Textbox(label="Loss", lines=2)
-                    copy_button_prompt = gr.Button("Copy Results")
 
             run_button_prompt.click(
                 run_prompt_optimization,
                 inputs=[system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, engine_dropdown, api_key_input, iterations],
                 outputs=[optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt]
             )
+
+            gr.Markdown("## Select outputs to download:")
+            with gr.Row():
+                prompt_system_checkbox = gr.Checkbox(label="Optimized System Prompt", value=True)
+                prompt_input_checkbox = gr.Checkbox(label="Optimized Input Prompt", value=True)
+                prompt_prediction_checkbox = gr.Checkbox(label="Prediction", value=False)
+                prompt_loss_checkbox = gr.Checkbox(label="Loss", value=False)
+
+            prompt_selected_outputs = gr.Code(label="Selected Outputs", language="markdown", lines=10)
+
+            with gr.Row():
+                with gr.Column(scale=3):
+                    gr.Markdown(" ")
+                with gr.Column(scale=1):
+                    prompt_show_button = gr.Button("Show Selected")
 
         with gr.TabItem("Code Optimization"):
             with gr.Row():
@@ -266,7 +311,6 @@ def longest_increasing_subsequence(nums):
                     initial_code_output = gr.Code(label="Initial Code", language="python", lines=10)
                     loss_output_code = gr.Textbox(label="Loss", lines=2)
                     optimized_code_output = gr.Code(label="Optimized Code", language="python", lines=10)
-                    copy_button_code = gr.Button("Copy Results")
 
             run_button_code.click(
                 run_code_optimization,
@@ -274,75 +318,76 @@ def longest_increasing_subsequence(nums):
                 outputs=[initial_code_output, loss_output_code, optimized_code_output]
             )
 
+            gr.Markdown("## Select outputs to download:")
+            with gr.Row():
+                code_initial_checkbox = gr.Checkbox(label="Initial Code", value=False)
+                code_loss_checkbox = gr.Checkbox(label="Loss", value=False)
+                code_optimized_checkbox = gr.Checkbox(label="Optimized Code", value=True)
+
+            code_selected_outputs = gr.Code(label="Selected Outputs", language="markdown", lines=10)
+
+            with gr.Row():
+                with gr.Column(scale=3):
+                    gr.Markdown(" ")
+                with gr.Column(scale=1):
+                    code_show_button = gr.Button("Show Selected")
+
     gr.Markdown("""
     ## How to use this demo:
     1. Enter your API key at the top of the page.
     2. Select the engine you want to use from the dropdown menu.
     3. Choose the number of optimization iterations using the slider.
     4. Choose the tab for the type of optimization you want to perform.
-                
-    ### Multimodal Optimization Tab:
-    1. Upload an image you want to ask a question about.
-    2. Enter your question in the text box.
-    3. Modify the evaluation instruction if needed.
-    4. Click the "Run Optimization" button to see the results.
-
-    ### Solution Optimization Tab:
-    1. Enter the initial input (e.g., a punchline or text to optimize).
-    2. Specify the role description for the variable.
-    3. Enter the loss function prompt.
-    4. Click the "Run Solution Optimization" button to see the results.
-
-    ### Prompt Optimization Tab:
-    1. Enter the system prompt and input prompt you want to optimize.
-    2. Provide a sample question and answer for evaluation.
-    3. Click the "Run Prompt Optimization" button to see the results.
-
-    ### Code Optimization Tab:
-    1. Enter the problem description in the text box.
-    2. Provide the initial code solution in the code editor.
-    3. Click the "Run Code Optimization" button to see the results.
-
-    You can copy the results using the "Copy Results" button in each tab. The results will be copied to your clipboard.
+    5. After running optimizations, select which outputs you want to download using the checkboxes.
+    6. Click the "Show Selected" button to display the selected outputs.
+    
+    ... (keep the rest of the instructions)
     """)
 
-    # Embed JavaScript for copying text to clipboard
-    gr.HTML("""
-    <script>
-        function copyTextToClipboard(text) {
-            navigator.clipboard.writeText(text).then(function() {
-                console.log('Copying to clipboard was successful!');
-            }, function(err) {
-                console.error('Could not copy text: ', err);
-            });
-        }
+    def update_selected_outputs(*args):
+        checkboxes = args[:len(args)//2]
+        outputs = args[len(args)//2:]
+        selected = ""
+        labels = ["Initial Response", "Loss", "Optimized Response", "Initial Input", "Optimized Solution", "Prediction", "Optimized System Prompt", "Optimized Input Prompt", "Initial Code", "Optimized Code"]
+        for checkbox, output, label in zip(checkboxes, outputs, labels):
+            if checkbox and output:
+                selected += f"{label}:\n{output}\n\n"
+        return selected
 
-        function setupCopyButtons() {
-            const copyButtons = document.querySelectorAll('button:contains("Copy Results")');
-            copyButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const container = button.closest('.tabitem');
-                    const textareas = container.querySelectorAll('textarea');
-                    const copyText = Array.from(textareas).map(textarea => `${textarea.previousElementSibling.textContent}:\n${textarea.value}`).join('\n\n');
-                    copyTextToClipboard(copyText);
-                });
-            });
-        }
+    multimodal_show_button.click(
+        update_selected_outputs,
+        inputs=[multimodal_initial_checkbox, multimodal_loss_checkbox, multimodal_optimized_checkbox,
+                initial_response, loss_output, optimized_response],
+        outputs=[multimodal_selected_outputs]
+    )
 
-        // Use MutationObserver to handle dynamically added elements
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'childList') {
-                    setupCopyButtons();
-                }
-            });
-        });
+    solution_show_button.click(
+        update_selected_outputs,
+        inputs=[solution_initial_checkbox, solution_loss_checkbox, solution_optimized_checkbox,
+                initial_solution_output, loss_output_sol, optimized_solution],
+        outputs=[solution_selected_outputs]
+    )
 
-        observer.observe(document.body, { childList: true, subtree: true });
+    prompt_show_button.click(
+        update_selected_outputs,
+        inputs=[prompt_system_checkbox, prompt_input_checkbox, prompt_prediction_checkbox, prompt_loss_checkbox,
+                optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt],
+        outputs=[prompt_selected_outputs]
+    )
 
-        window.addEventListener('load', setupCopyButtons);
-    </script>
-    """)
+    code_show_button.click(
+        update_selected_outputs,
+        inputs=[code_initial_checkbox, code_loss_checkbox, code_optimized_checkbox,
+                initial_code_output, loss_output_code, optimized_code_output],
+        outputs=[code_selected_outputs]
+    )
+
+    def check_api_key(api_key):
+        if not api_key:
+            return gr.Warning("Please enter your API key before running optimizations.")
+
+    for run_button in [run_button, run_button_sol, run_button_prompt, run_button_code]:
+        run_button.click(check_api_key, inputs=[api_key_input])
 
 if __name__ == "__main__":
     demo.launch()
