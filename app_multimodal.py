@@ -60,9 +60,50 @@ def run_solution_optimization(initial_input, role_description, loss_prompt, engi
     initial, loss, optimized = process_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key)
     return initial, loss, optimized
 
+def process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key):
+    os.environ["OPENAI_API_KEY"] = api_key
+    tg.set_backward_engine(engine, override=True)
+
+    # Create a dummy evaluation function
+    def dummy_eval_fn(inputs):
+        prediction = inputs['prediction'].value
+        ground_truth = inputs['ground_truth_answer'].value
+        # Simple string comparison for demonstration purposes
+        score = 1 if prediction.strip().lower() == ground_truth.strip().lower() else 0
+        return tg.Variable(str(score), requires_grad=False, role_description="evaluation score")
+
+    question = tg.Variable(question, role_description="question to the LLM", requires_grad=False)
+    answer = tg.Variable(answer, role_description="answer to the question", requires_grad=False)
+
+    system_prompt = tg.Variable(system_prompt,
+                                requires_grad=True,
+                                role_description="system prompt to guide the LLM's reasoning strategy for accurate responses")
+
+    input_prompt = tg.Variable(input_prompt,
+                               requires_grad=True,
+                               role_description="input prompt for the LLM")
+
+    model = tg.BlackboxLLM(engine, system_prompt=system_prompt)
+    optimizer = tg.TGD(parameters=list(model.parameters()) + [input_prompt])
+
+    full_prompt = tg.Variable(f"{input_prompt.value}\n\n{question.value}", requires_grad=True, role_description="full prompt for the LLM")
+    prediction = model(full_prompt)
+    loss = dummy_eval_fn(dict(prediction=prediction, ground_truth_answer=answer))
+    loss.backward()
+    optimizer.step()
+
+    return system_prompt.value, input_prompt.value, prediction.value, str(loss.value)
+
+def run_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key):
+    optimized_system_prompt, optimized_input_prompt, prediction, loss = process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key)
+    return optimized_system_prompt, optimized_input_prompt, prediction, loss
+
 with gr.Blocks() as demo:
     gr.Markdown("# TextGrad Optimization Demo")
     
+    api_key_input = gr.Textbox(label="Enter your API Key", type="password")
+    engine_dropdown = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
+
     with gr.Tabs():
         with gr.TabItem("Multimodal Optimization"):
             with gr.Row():
@@ -74,8 +115,6 @@ with gr.Blocks() as demo:
                         value="Does this seem like a complete and good answer for the image? Criticize. Do not provide a new answer.",
                         lines=3
                     )
-                    engine_dropdown = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
-                    api_key_input = gr.Textbox(label="Enter your API Key", type="password")
                     run_button = gr.Button("Run Optimization")
                 
                 with gr.Column():
@@ -96,8 +135,6 @@ with gr.Blocks() as demo:
                     initial_input = gr.Textbox(label="Enter initial input", lines=3, value="write a punchline for my github package about saving pages and documents to collections for llm contexts")
                     role_description = gr.Textbox(label="Role Description", value="a concise punchline that must hook everyone")
                     loss_prompt = gr.Textbox(label="Loss Function Prompt", lines=3, value="We want to have a super smart and funny punchline. Is the current one concise and addictive? Is the punch fun, makes sense, and subtle enough?")
-                    engine_dropdown_sol = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
-                    api_key_input_sol = gr.Textbox(label="Enter your API Key", type="password")
                     run_button_sol = gr.Button("Run Solution Optimization")
                 
                 with gr.Column():
@@ -108,27 +145,54 @@ with gr.Blocks() as demo:
 
             run_button_sol.click(
                 run_solution_optimization,
-                inputs=[initial_input, role_description, loss_prompt, engine_dropdown_sol, api_key_input_sol],
+                inputs=[initial_input, role_description, loss_prompt, engine_dropdown, api_key_input],
                 outputs=[initial_solution_output, loss_output_sol, optimized_solution]
+            )
+
+        with gr.TabItem("Prompt Optimization"):
+            with gr.Row():
+                with gr.Column():
+                    system_prompt_input = gr.Textbox(label="System Prompt", lines=3, value="You are a concise LLM. Think step by step.")
+                    input_prompt_input = gr.Textbox(label="Input Prompt", lines=3, value="Count the objects in the following question:")
+                    question_input_prompt = gr.Textbox(label="Question", lines=3, value="I have two stalks of celery, two garlics, a potato, three heads of broccoli, a carrot, and a yam. How many vegetables do I have?")
+                    answer_input_prompt = gr.Textbox(label="Answer", lines=1, value="10")
+                    run_button_prompt = gr.Button("Run Prompt Optimization")
+                
+                with gr.Column():
+                    optimized_system_prompt_output = gr.Textbox(label="Optimized System Prompt", lines=3)
+                    optimized_input_prompt_output = gr.Textbox(label="Optimized Input Prompt", lines=3)
+                    prediction_output = gr.Textbox(label="Prediction", lines=3)
+                    loss_output_prompt = gr.Textbox(label="Loss", lines=2)
+                    copy_button_prompt = gr.Button("Copy Results")
+
+            run_button_prompt.click(
+                run_prompt_optimization,
+                inputs=[system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, engine_dropdown, api_key_input],
+                outputs=[optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt]
             )
 
     gr.Markdown("""
     ## How to use this demo:
+    1. Enter your API key at the top of the page.
+    2. Select the engine you want to use from the dropdown menu.
+    3. Choose the tab for the type of optimization you want to perform.
+
     ### Multimodal Optimization Tab:
     1. Upload an image you want to ask a question about.
     2. Enter your question in the text box.
     3. Modify the evaluation instruction if needed.
-    4. Select the engine you want to use from the dropdown menu.
-    5. Enter your API key.
-    6. Click the "Run Optimization" button to see the results.
+    4. Click the "Run Optimization" button to see the results.
 
     ### Solution Optimization Tab:
     1. Enter the initial input (e.g., a punchline or text to optimize).
     2. Specify the role description for the variable.
     3. Enter the loss function prompt.
-    4. Select the engine you want to use from the dropdown menu.
-    5. Enter your API key.
-    6. Click the "Run Solution Optimization" button to see the results.
+    4. Click the "Run Solution Optimization" button to see the results.
+
+    ### Prompt Optimization Tab:
+    1. Enter the system prompt and input prompt you want to optimize.
+    2. Provide a sample question and answer for evaluation.
+    3. Click the "Run Prompt Optimization" button to see the results.
 
     You can copy the results using the "Copy Results" button in each tab. The results will be copied to your clipboard.
     """)
