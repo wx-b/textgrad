@@ -268,20 +268,6 @@ def longest_increasing_subsequence(nums):
     2. Select the engine you want to use from the dropdown menu.
     3. Choose the tab for the type of optimization you want to perform.
 
-    ### Code Optimization Tab:
-    1. Enter the problem description in the text box.
-    2. Provide the initial code solution in the code editor.
-    3. Click the "Run Code Optimization" button to see the results.
-
-    You can copy the results using the "Copy Results" button in each tab. The results will be copied to your clipboard.
-    """)
-
-    gr.Markdown("""
-    ## How to use this demo:
-    1. Enter your API key at the top of the page.
-    2. Select the engine you want to use from the dropdown menu.
-    3. Choose the tab for the type of optimization you want to perform.
-
     ### Multimodal Optimization Tab:
     1. Upload an image you want to ask a question about.
     2. Enter your question in the text box.
@@ -298,6 +284,11 @@ def longest_increasing_subsequence(nums):
     1. Enter the system prompt and input prompt you want to optimize.
     2. Provide a sample question and answer for evaluation.
     3. Click the "Run Prompt Optimization" button to see the results.
+
+    ### Code Optimization Tab:
+    1. Enter the problem description in the text box.
+    2. Provide the initial code solution in the code editor.
+    3. Click the "Run Code Optimization" button to see the results.
 
     You can copy the results using the "Copy Results" button in each tab. The results will be copied to your clipboard.
     """)
