@@ -9,7 +9,7 @@ import os
 # List of available engines
 ENGINES = ["gpt-4o", "gpt-4-vision-preview", "claude-3-opus-20240229"]
 
-def process_image_and_question(image, question, engine, api_key, evaluation_instruction):
+def process_image_and_question(image, question, engine, api_key, evaluation_instruction, iterations):
     os.environ["OPENAI_API_KEY"] = api_key
     tg.set_backward_engine(engine, override=True)
 
@@ -32,7 +32,7 @@ def process_image_and_question(image, question, engine, api_key, evaluation_inst
     )
 
     # Optimization loop
-    for _ in range(3):  # You can adjust the number of optimization steps
+    for _ in range(iterations):
         loss = loss_fn(question=question_variable, image=image_variable, response=response)
         optimizer = tg.TGD(parameters=[response])
         loss.backward()
@@ -40,11 +40,11 @@ def process_image_and_question(image, question, engine, api_key, evaluation_inst
 
     return initial_response.value, str(loss.value), response.value
 
-def run_textgrad_multimodal(image, question, engine, api_key, evaluation_instruction):
-    initial_response, loss, optimized_response = process_image_and_question(image, question, engine, api_key, evaluation_instruction)
+def run_textgrad_multimodal(image, question, engine, api_key, evaluation_instruction, iterations):
+    initial_response, loss, optimized_response = process_image_and_question(image, question, engine, api_key, evaluation_instruction, iterations)
     return initial_response, loss, optimized_response
 
-def process_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key):
+def process_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key, iterations):
     os.environ["OPENAI_API_KEY"] = api_key
     tg.set_backward_engine(engine, override=True)
 
@@ -55,17 +55,19 @@ def process_solution_optimization(initial_input, role_description, loss_prompt, 
     loss_fn = TextLoss(loss_system_prompt)
     optimizer = tg.TGD([variable])
 
-    loss = loss_fn(variable)
-    loss.backward()
-    optimizer.step()
+    # Optimization loop
+    for _ in range(iterations):
+        loss = loss_fn(variable)
+        loss.backward()
+        optimizer.step()
 
     return initial_input, str(loss.value), variable.value
 
-def run_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key):
-    initial, loss, optimized = process_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key)
+def run_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key, iterations):
+    initial, loss, optimized = process_solution_optimization(initial_input, role_description, loss_prompt, engine, api_key, iterations)
     return initial, loss, optimized
 
-def process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key):
+def process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key, iterations):
     os.environ["OPENAI_API_KEY"] = api_key
     tg.set_backward_engine(engine, override=True)
 
@@ -91,19 +93,21 @@ def process_prompt_optimization(system_prompt, input_prompt, question, answer, e
     model = tg.BlackboxLLM(engine, system_prompt=system_prompt)
     optimizer = tg.TGD(parameters=list(model.parameters()) + [input_prompt])
 
-    full_prompt = tg.Variable(f"{input_prompt.value}\n\n{question.value}", requires_grad=True, role_description="full prompt for the LLM")
-    prediction = model(full_prompt)
-    loss = dummy_eval_fn(dict(prediction=prediction, ground_truth_answer=answer))
-    loss.backward()
-    optimizer.step()
+    # Optimization loop
+    for _ in range(iterations):
+        full_prompt = tg.Variable(f"{input_prompt.value}\n\n{question.value}", requires_grad=True, role_description="full prompt for the LLM")
+        prediction = model(full_prompt)
+        loss = dummy_eval_fn(dict(prediction=prediction, ground_truth_answer=answer))
+        loss.backward()
+        optimizer.step()
 
     return system_prompt.value, input_prompt.value, prediction.value, str(loss.value)
 
-def run_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key):
-    optimized_system_prompt, optimized_input_prompt, prediction, loss = process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key)
+def run_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key, iterations):
+    optimized_system_prompt, optimized_input_prompt, prediction, loss = process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key, iterations)
     return optimized_system_prompt, optimized_input_prompt, prediction, loss
 
-def process_code_optimization(problem_text, initial_solution, engine, api_key):
+def process_code_optimization(problem_text, initial_solution, engine, api_key, iterations):
     os.environ["OPENAI_API_KEY"] = api_key
     tg.set_backward_engine(engine, override=True)
 
@@ -137,14 +141,16 @@ def process_code_optimization(problem_text, initial_solution, engine, api_key):
         return formatted_llm_call(inputs=inputs,
                                   response_role_description=f"evaluation of the {code.get_role_description()}")
 
-    loss = loss_fn(problem, code)
-    loss.backward()
-    optimizer.step()
+    # Optimization loop
+    for _ in range(iterations):
+        loss = loss_fn(problem, code)
+        loss.backward()
+        optimizer.step()
 
     return initial_solution, str(loss.value), code.value
 
-def run_code_optimization(problem_text, initial_solution, engine, api_key):
-    initial, loss, optimized = process_code_optimization(problem_text, initial_solution, engine, api_key)
+def run_code_optimization(problem_text, initial_solution, engine, api_key, iterations):
+    initial, loss, optimized = process_code_optimization(problem_text, initial_solution, engine, api_key, iterations)
     return initial, loss, optimized
 
 with gr.Blocks() as demo:
@@ -152,6 +158,7 @@ with gr.Blocks() as demo:
     
     api_key_input = gr.Textbox(label="Enter your API Key", type="password")
     engine_dropdown = gr.Dropdown(choices=ENGINES, label="Select Engine", value="gpt-4o")
+    iterations = gr.Slider(minimum=1, maximum=10, step=1, value=3, label="Number of Optimization Iterations")
 
     with gr.Tabs():
         with gr.TabItem("Multimodal Optimization"):
@@ -174,7 +181,7 @@ with gr.Blocks() as demo:
 
             run_button.click(
                 run_textgrad_multimodal,
-                inputs=[image_input, question_input, engine_dropdown, api_key_input, evaluation_instruction],
+                inputs=[image_input, question_input, engine_dropdown, api_key_input, evaluation_instruction, iterations],
                 outputs=[initial_response, loss_output, optimized_response]
             )
 
@@ -194,7 +201,7 @@ with gr.Blocks() as demo:
 
             run_button_sol.click(
                 run_solution_optimization,
-                inputs=[initial_input, role_description, loss_prompt, engine_dropdown, api_key_input],
+                inputs=[initial_input, role_description, loss_prompt, engine_dropdown, api_key_input, iterations],
                 outputs=[initial_solution_output, loss_output_sol, optimized_solution]
             )
 
@@ -216,7 +223,7 @@ with gr.Blocks() as demo:
 
             run_button_prompt.click(
                 run_prompt_optimization,
-                inputs=[system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, engine_dropdown, api_key_input],
+                inputs=[system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, engine_dropdown, api_key_input, iterations],
                 outputs=[optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt]
             )
 
@@ -263,7 +270,7 @@ def longest_increasing_subsequence(nums):
 
             run_button_code.click(
                 run_code_optimization,
-                inputs=[problem_text_input, initial_code_input, engine_dropdown, api_key_input],
+                inputs=[problem_text_input, initial_code_input, engine_dropdown, api_key_input, iterations],
                 outputs=[initial_code_output, loss_output_code, optimized_code_output]
             )
 
@@ -271,8 +278,9 @@ def longest_increasing_subsequence(nums):
     ## How to use this demo:
     1. Enter your API key at the top of the page.
     2. Select the engine you want to use from the dropdown menu.
-    3. Choose the tab for the type of optimization you want to perform.
-
+    3. Choose the number of optimization iterations using the slider.
+    4. Choose the tab for the type of optimization you want to perform.
+                
     ### Multimodal Optimization Tab:
     1. Upload an image you want to ask a question about.
     2. Enter your question in the text box.
