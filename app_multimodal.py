@@ -98,6 +98,50 @@ def run_prompt_optimization(system_prompt, input_prompt, question, answer, engin
     optimized_system_prompt, optimized_input_prompt, prediction, loss = process_prompt_optimization(system_prompt, input_prompt, question, answer, engine, api_key)
     return optimized_system_prompt, optimized_input_prompt, prediction, loss
 
+def process_code_optimization(problem_text, initial_solution, engine, api_key):
+    os.environ["OPENAI_API_KEY"] = api_key
+    tg.set_backward_engine(engine, override=True)
+
+    llm_engine = tg.get_engine(engine)
+
+    code = tg.Variable(value=initial_solution,
+                       requires_grad=True,
+                       role_description="code instance to optimize")
+
+    problem = tg.Variable(problem_text, 
+                          requires_grad=False, 
+                          role_description="the coding problem")
+
+    optimizer = tg.TGD(parameters=[code])
+
+    loss_system_prompt = "You are a smart language model that evaluates code snippets. You do not solve problems or propose new code snippets, only evaluate existing solutions critically and give very concise feedback."
+    loss_system_prompt = tg.Variable(loss_system_prompt, requires_grad=False, role_description="system prompt to the loss function")
+
+    instruction = """Think about the problem and the code snippet. Does the code solve the problem? What is the runtime complexity?"""
+    format_string = "{instruction}\nProblem: {{problem}}\nCurrent Code: {{code}}"
+    format_string = format_string.format(instruction=instruction)
+
+    fields = {"problem": None, "code": None}
+    formatted_llm_call = tg.autograd.FormattedLLMCall(engine=llm_engine,
+                                          format_string=format_string,
+                                          fields=fields,
+                                          system_prompt=loss_system_prompt)
+
+    def loss_fn(problem: tg.Variable, code: tg.Variable) -> tg.Variable:
+        inputs = {"problem": problem, "code": code}
+        return formatted_llm_call(inputs=inputs,
+                                  response_role_description=f"evaluation of the {code.get_role_description()}")
+
+    loss = loss_fn(problem, code)
+    loss.backward()
+    optimizer.step()
+
+    return initial_solution, str(loss.value), code.value
+
+def run_code_optimization(problem_text, initial_solution, engine, api_key):
+    initial, loss, optimized = process_code_optimization(problem_text, initial_solution, engine, api_key)
+    return initial, loss, optimized
+
 with gr.Blocks() as demo:
     gr.Markdown("# TextGrad Optimization Demo")
     
@@ -170,6 +214,67 @@ with gr.Blocks() as demo:
                 inputs=[system_prompt_input, input_prompt_input, question_input_prompt, answer_input_prompt, engine_dropdown, api_key_input],
                 outputs=[optimized_system_prompt_output, optimized_input_prompt_output, prediction_output, loss_output_prompt]
             )
+
+        with gr.TabItem("Code Optimization"):
+            with gr.Row():
+                with gr.Column():
+                    problem_text_input = gr.Textbox(label="Problem Description", lines=5, value="""Longest Increasing Subsequence (LIS)
+
+Problem Statement:
+Given a sequence of integers, find the length of the longest subsequence that is strictly increasing. A subsequence is a sequence that can be derived from another sequence by deleting some or no elements without changing the order of the remaining elements.
+
+Input:
+The input consists of a list of integers representing the sequence.
+
+Output:
+The output should be an integer representing the length of the longest increasing subsequence.""")
+                    initial_code_input = gr.Code(label="Initial Code", language="python", lines=10, value="""
+def longest_increasing_subsequence(nums):
+    n = len(nums)
+    dp = [1] * n
+    
+    for i in range(1, n):
+        for j in range(i):
+            if nums[i] > nums[j]:
+                dp[i] = max(dp[i], dp[j] + 1)
+    
+    max_length = max(dp)
+    lis = []
+    
+    for i in range(n - 1, -1, -1):
+        if dp[i] == max_length:
+            lis.append(nums[i])
+            max_length -= 1
+    
+    return len(lis[::-1])
+""")
+                    run_button_code = gr.Button("Run Code Optimization")
+                
+                with gr.Column():
+                    initial_code_output = gr.Code(label="Initial Code", language="python", lines=10)
+                    loss_output_code = gr.Textbox(label="Loss", lines=2)
+                    optimized_code_output = gr.Code(label="Optimized Code", language="python", lines=10)
+                    copy_button_code = gr.Button("Copy Results")
+
+            run_button_code.click(
+                run_code_optimization,
+                inputs=[problem_text_input, initial_code_input, engine_dropdown, api_key_input],
+                outputs=[initial_code_output, loss_output_code, optimized_code_output]
+            )
+
+    gr.Markdown("""
+    ## How to use this demo:
+    1. Enter your API key at the top of the page.
+    2. Select the engine you want to use from the dropdown menu.
+    3. Choose the tab for the type of optimization you want to perform.
+
+    ### Code Optimization Tab:
+    1. Enter the problem description in the text box.
+    2. Provide the initial code solution in the code editor.
+    3. Click the "Run Code Optimization" button to see the results.
+
+    You can copy the results using the "Copy Results" button in each tab. The results will be copied to your clipboard.
+    """)
 
     gr.Markdown("""
     ## How to use this demo:
